@@ -1,0 +1,38 @@
+{
+  "name": "web-marketing-tool",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
+    "@aws-sdk/client-s3": "^3.954.0",
+    "@aws-sdk/s3-request-presigner": "^3.954.0",
+    "@prisma/client": "^6.19.1",
+    "bcrypt": "^6.0.0",
+    "next": "16.0.10",
+    "next-auth": "^4.24.13",
+    "prisma": "^6.19.1",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "sharp": "^0.34.5",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
+    "@types/node": "^20.19.27",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.10",
+    "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

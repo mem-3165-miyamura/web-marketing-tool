@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ユーザー（管理画面の利用者）
+model User {
+  id             String        @id @default(cuid())
+  name           String?
+  email          String        @unique
+  hashedPassword String
+  popups         PopUpConfig[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// ポップアップの設定
+model PopUpConfig {
+  id           String   @id @default(cuid())
+  name         String   // 管理用の名前
+  enabled      Boolean  @default(true)
+
+  // パターンA（デフォルト）の設定
+  title        String
+  description  String
+  imageUrl     String?
+  buttonText   String   @default("詳細を見る")
+  buttonLink   String   @default("#")
+
+  // パターンB（ABテスト用）の設定
+  // これらが入力されている場合、ABテストとして動作する
+  titleB       String?
+  descriptionB String?
+  imageUrlB    String?
+  buttonTextB  String?
+
+  // 共通設定
+  displayDelay Int      @default(3000) // 表示までの遅延(ms)
+
+  // 全体集計用のカウンター（簡易表示用）
+  views        Int      @default(0)
+  clicks       Int      @default(0)
+
+  // ユーザー紐付け
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ログとのリレーション
+  TrackingLogs TrackingLog[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// トラッキングログ（ABテストの集計に利用）
+model TrackingLog {
+  id           String      @id @default(cuid())
+  
+  // どのポップアップのログか
+  popUpId      String
+  popUpConfig  PopUpConfig @relation(fields: [popUpId], references: [id], onDelete: Cascade)
+
+  // どの訪問者のログか（スニペットで生成したvid）
+  userId       String
+
+  // イベントの種類（view: 表示, click: クリック）
+  eventType    String
+
+  // ABテストのどちらのパターンを表示したか（A または B）
+  pattern      String      @default("A")
+
+  // オプション情報
+  siteId       String?
+  pageUrl      String?     @db.VarChar(1000)
+  
+  createdAt    DateTime    @default(now())
+
+  // 集計を高速化するためのインデックス
+  @@index([popUpId, eventType, pattern])
+}
