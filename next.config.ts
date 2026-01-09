@@ -1,14 +1,11 @@
-// next.config.ts
+import type { NextConfig } from 'next';
 
-const nextConfig = {
-  // 🔽 新しいキー: サーバー側で外部パッケージをバンドルから除外する設定
-  // (通常、Prisma Clientなどを指定するために使われます)
-  serverExternalPackages: ['@prisma/client', 'bcrypt'],
-  
-  // 🔽 'experimental' ブロックから古いキーを削除します
-  // experimental: {
-  //   serverComponentsExternalPackages: ['@prisma/client', 'bcrypt'], // この行を削除
-  // },
+const nextConfig: NextConfig = {
+  serverExternalPackages: ['@prisma/client', 'bcrypt', 'duckdb'],
+  // Next.js 15+ では experimental.instrumentationHook は不要（または非推奨）
+  experimental: {
+    // 他のオプションがあれば残す
+  },
 };
 
 export default nextConfig;

@@ -1,4 +1,3 @@
-// app/page.tsx
 import { auth } from "@lib/auth"; 
 import Link from "next/link";
 import { prisma } from "@lib/prisma";
@@ -27,8 +26,7 @@ export default async function Home() {
     orderBy: { createdAt: 'desc' }
   });
 
-  // 2. TrackingLogからABテストの統計を「本格的に」集計
-  // 全てのポップアップのログをパターン(A/B)とイベント(view/click)ごとにグループ化
+  // 2. TrackingLogからABテストの統計を簡易集計（一覧表示用）
   const statsLogs = await prisma.trackingLog.groupBy({
     by: ['popUpId', 'pattern', 'eventType'],
     where: {
@@ -37,7 +35,6 @@ export default async function Home() {
     _count: true
   });
 
-  // 集計データを扱いやすい形に変換
   const statsMap = statsLogs.reduce((acc: any, log) => {
     if (!acc[log.popUpId]) {
       acc[log.popUpId] = { A: { view: 0, click: 0 }, B: { view: 0, click: 0 } };
@@ -48,13 +45,13 @@ export default async function Home() {
     return acc;
   }, {});
 
-  // 3. 全体統計の計算
+  // 3. 全体統計
   const totalViews = popups.reduce((acc, curr) => acc + curr.views, 0);
   const totalClicks = popups.reduce((acc, curr) => acc + curr.clicks, 0);
   const avgCtr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : "0.00";
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1100px', margin: 'auto', fontFamily: 'sans-serif', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+    <div style={{ padding: '40px', maxWidth: '1200px', margin: 'auto', fontFamily: 'sans-serif', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '24px' }}>ダッシュボード</h1>
@@ -130,12 +127,10 @@ export default async function Home() {
                         {hasB ? 'ABテスト実施中' : '通常配信'}
                       </span>
                     </td>
-                    {/* パターンAの結果 */}
                     <td style={tdStyle}>
                       <div style={{ fontSize: '12px' }}>📊 {s.A.view} / {s.A.click}</div>
                       <div style={{ fontWeight: 'bold', color: '#4a5568' }}>CTR: {ctrA}%</div>
                     </td>
-                    {/* パターンBの結果 */}
                     <td style={tdStyle}>
                       {hasB ? (
                         <>
@@ -150,7 +145,15 @@ export default async function Home() {
                     </td>
                     <td style={tdStyle}>{new Date(popup.createdAt).toLocaleDateString('ja-JP')}</td>
                     <td style={tdStyle}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {/* 🔽 統計レポート（DuckDBページ）へのリンクを追加 */}
+                        <Link 
+                          href={`/admin/analytics/${popup.id}`} 
+                          style={analyticsButtonStyle}
+                          title="詳細レポートを表示"
+                        >
+                          📈 レポート
+                        </Link>
                         <Link href={`/popups/${popup.id}/edit`} style={editButtonStyle}>編集</Link>
                         <DeletePopupButton popupId={popup.id} />
                       </div>
@@ -166,10 +169,23 @@ export default async function Home() {
   );
 }
 
-// スタイル定義（既存のものを踏襲）
+// スタイル定義
 const primaryButtonStyle = { display: 'inline-block', backgroundColor: '#0070f3', color: 'white', padding: '10px 20px', borderRadius: '5px', textDecoration: 'none', fontWeight: 'bold', fontSize: '14px' };
 const secondaryButtonStyle = { padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', textDecoration: 'none', color: '#333', fontSize: '14px', backgroundColor: '#fff' };
-const editButtonStyle = { fontSize: '13px', color: '#0070f3', textDecoration: 'none', border: '1px solid #0070f3', padding: '4px 8px', borderRadius: '4px' };
+const editButtonStyle = { fontSize: '13px', color: '#666', textDecoration: 'none', border: '1px solid #ccc', padding: '4px 8px', borderRadius: '4px' };
+
+// 🔽 分析ボタン用の新スタイル
+const analyticsButtonStyle = { 
+  fontSize: '13px', 
+  color: '#2b6cb0', 
+  textDecoration: 'none', 
+  border: '1px solid #2b6cb0', 
+  backgroundColor: '#ebf8ff',
+  padding: '4px 8px', 
+  borderRadius: '4px',
+  fontWeight: 'bold'
+};
+
 const cardStyle = { padding: '24px', border: '1px solid #eee', borderRadius: '12px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' };
 const labelStyle = { fontSize: '13px', color: '#666', display: 'block', marginBottom: '10px' };
 const valueStyle = { fontSize: '28px', fontWeight: 'bold' as const, display: 'flex', alignItems: 'baseline' };

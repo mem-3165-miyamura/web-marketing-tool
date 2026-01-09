@@ -30,8 +30,7 @@ services:
       - ./docker_data/minio:/data
     command: server /data --console-address ":9001"
 
-  # 3. MinIO初期設定用コンテナ (バケットの自動作成 & 公開設定)
-  # これがあることで、毎回手動で管理画面からバケットを作る手間が省けます
+  # 3. MinIO初期設定用コンテナ
   minio-init:
     image: minio/mc
     container_name: next_marketing_minio_init
@@ -42,13 +41,20 @@ services:
       until (/usr/bin/mc alias set myminio http://minio:9000 minioadmin miniopassword) do 
         echo 'Waiting for MinIO...' && sleep 1; 
       done;
+      
+      # 既存のpopupsバケット設定
       if ! /usr/bin/mc ls myminio/popups > /dev/null 2>&1; then
         /usr/bin/mc mb myminio/popups;
         /usr/bin/mc anonymous set public myminio/popups;
         echo 'Bucket popups created with public access';
-      else
-        echo 'Bucket popups already exists';
       fi;
+
+      # アーカイブ集計用のtracking-logsバケット追加
+      if ! /usr/bin/mc ls myminio/tracking-logs > /dev/null 2>&1; then
+        /usr/bin/mc mb myminio/tracking-logs;
+        echo 'Bucket tracking-logs created';
+      fi;
+      
       exit 0;
       "
 
