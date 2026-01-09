@@ -37,3 +37,6 @@ next-env.d.ts
 # バッチ処理の一時データ
 /data/archive/
 *.parquet
+
+# Dockerのデータ実体
+/docker_data/
