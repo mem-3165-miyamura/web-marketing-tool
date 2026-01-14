@@ -1,28 +1,69 @@
-# A/B Test Analytics System
+# 🚀 Web Marketing Automation Tool (MA)
 
-PostgreSQL（リアルタイム）と S3/MinIO（アーカイブ）を組み合わせた、高速で堅牢なポップアップ分析システム。
+ユーザーの行動をリアルタイムで追跡し、特定の条件を満たした訪問者を自動的に顧客（CUSTOMER）へ昇格させ、パーソナライズされたメールを即時配信するマーケティングオートメーション（MA）ツールです。
 
-## 🚀 システム概要
+## 🌟 主な機能
 
-データの鮮度とスケーラビリティを両立させる「ハイブリッド・データレイク・アーキテクチャ」を採用。
+- **リアルタイム・トラッキング**: 訪問者のページ閲覧（page_view）や特定のアクションを記録。
+- **自動ステータス判定（Status Promotion）**: 蓄積された行動ログに基づき、訪問者のランク（LEAD / PROSPECT / CUSTOMER / CHURNED）を自動更新。
+- **自動メール配信（MA実行）**: ステータス更新や特定イベントをトリガーに、設定済みのメールを即時送信。
+- **管理画面**: メール配信設定の作成・編集、ユーザーセッション管理、認証機能（Auth.js）。
+- **開発用メールテスト環境**: MailHogと連携し、送信されたメールをブラウザ上で確認可能。
 
-- **リアルタイム解析**: 直近のログは PostgreSQL で管理し、管理画面に即座に反映。
-- **長期保存・高速集計**: 過去のログは Parquet 形式で S3 (MinIO) へ保存。DuckDB を使用してこれらを高速に統合集計します。
+## 🛠 技術スタック
 
-## ⚙️ アーカイブバッチ (Daily Batch Processing)
+- **Frontend/Backend**: Next.js 14 (App Router)
+- **Database**: PostgreSQL (Prisma ORM)
+- **Authentication**: Auth.js (NextAuth) v5
+- **Mail Handling**: Nodemailer + MailHog (Development)
+- **Styling**: Tailwind CSS + Lucide React
 
-データの肥大化を防ぎ、パフォーマンスを維持するための自動リカバリ型バッチ処理。
-毎日深夜（午前2時）に `api/v1/analytics/archive` を実行します。
+## 🚀 セットアップ
 
-1. **キャッチアップ (救出)**: S3 にファイルがない過去日を自動検知し、DBから救出して Parquet 化。
-2. **7日間保持ポリシー**: 直近7日間は PostgreSQL に残し、分析の高速化とバックアップを兼ねる。
-3. **安全なパージ**: S3 への保存完了を確認できた 8日以上前のデータのみ DB から削除。
+### 1. 環境変数の設定
+.env ファイルを作成し、以下の項目を設定してください。
+DATABASE_URL="postgresql://..."
+NEXTAUTH_SECRET="your-secret"
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
 
-## 🛠️ セットアップ
-
-### 1. 依存関係のインストール
-
-```bash
-git clone https://github.com/mem-3165-miyamura/web-marketing-tool.git
-cd web-marketing-tool
+### 2. データベースの準備
 npm install
+npx prisma db push
+
+### 3. 管理者ユーザーの作成
+- hash_generator.js を実行してパスワードをハッシュ化。
+- Prisma Studio を起動し、User テーブルにレコードを追加。
+- hashedPassword カラムに生成したハッシュを貼り付け。
+- ログイン後、MailConfig を作成（targetStatus: CUSTOMER, triggerEvent: page_view 等）。
+
+### 4. 開発サーバーの起動
+npm run dev で本体を起動。
+MailHog を起動すると、http://localhost:8025 でメール受信を確認できます。
+
+## 📈 MAエンジンのテスト方法
+
+ブラウザのコンソールから以下のスクリプトを実行してテストできます。
+（YOUR_ADMIN_USER_ID は自分のIDに書き換えてください）
+
+fetch('/api/v1/track', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: "YOUR_ADMIN_USER_ID",
+    vid: "device_test_001",
+    email: "visitor@example.com",
+    event: "page_view",
+    pageUrl: "/pricing",
+    popUpId: "system_identify"
+  })
+})
+.then(res => res.json())
+.then(data => console.log("🚀 MA結果:", data));
+
+## 📂 ディレクトリ構成
+
+- /app/admin: 管理画面（メール設定、統計など）
+- /app/api/v1/track: トラッキング & MAエンジン本体
+- /lib: 共通ライブラリ（DB接続、認証、判定ロジック）
+- /prisma: データベーススキーマ定義
