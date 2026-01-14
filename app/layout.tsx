@@ -4,8 +4,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 
 // 4行目以降を以下のように変更します:
-import SessionProviderWrapper from '@components/SessionProviderWrapper'; 
-import { auth } from '@lib/auth';  // `getSession` ではなく `auth` をインポート
+import SessionProviderWrapper from '@/components/SessionProviderWrapper'; 
+import { auth } from '@/lib/auth';  // `getSession` ではなく `auth` をインポート
 
 const inter = Inter({ subsets: ["latin"] });
 

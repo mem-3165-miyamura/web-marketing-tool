@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from "@lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import * as parquet from 'parquetjs-lite'; // 型定義と合わせて変数名を修正
 import fs from 'fs';

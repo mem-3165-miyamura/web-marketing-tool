@@ -1,4 +1,5 @@
-import ABTestChart from '@components/analytics/ABTestChart';
+//app/admin/analytics/[id]/page.tsx
+import ABTestChart from '@/components/analytics/ABTestChart';
 
 // params を Promise 型として定義します
 export default async function AnalyticsPage({ 

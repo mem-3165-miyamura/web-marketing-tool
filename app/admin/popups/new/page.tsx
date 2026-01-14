@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { createPopUp } from "@lib/actions/popup";
+import { createPopUp } from "@/lib/actions/popup";
 
 export default function NewPopUpPage() {
   const [previewA, setPreviewA] = useState<string | null>(null);

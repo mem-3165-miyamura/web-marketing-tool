@@ -1,11 +1,12 @@
 export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import duckdb from 'duckdb';
-import { prisma } from "@lib/prisma"; // Prismaをインポート
+import { prisma } from "@/lib/prisma";
 
+// メモリ内DuckDBインスタンス
 const db = new duckdb.Database(':memory:');
 
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<NextResponse> { // 1. 戻り値の型を明示
   const { searchParams } = new URL(request.url);
   const popUpId = searchParams.get('popUpId');
   const period = searchParams.get('period') || 'today';
@@ -14,7 +15,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ summary: [] });
   }
 
-  // --- 1. 「今日」の場合は PostgreSQL からリアルタイム取得 ---
+  /**
+   * 1. 「今日」の場合は PostgreSQL からリアルタイム取得
+   */
   if (period === 'today') {
     try {
       const today = new Date();
@@ -29,7 +32,6 @@ export async function GET(request: Request) {
         _count: true
       });
 
-      // PostgreSQLの結果をDuckDBと同じ型に変換
       const patterns = ['A', 'B'];
       const summary = patterns.map(p => {
         const views = logs.find(l => l.pattern === p && l.eventType === 'view')?._count || 0;
@@ -40,11 +42,14 @@ export async function GET(request: Request) {
 
       return NextResponse.json({ summary });
     } catch (error: any) {
+      console.error("PostgreSQL Analytics Error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
   }
 
-  // --- 2. 「昨日以降」の場合は DuckDB (S3) から高速取得 ---
+  /**
+   * 2. 「昨日以降」の場合は DuckDB (S3/MinIO) から Parquet ファイルを高速集計
+   */
   let dateFilter = "";
   if (period === 'yesterday') {
     dateFilter = `AND "createdAt" >= CURRENT_DATE - INTERVAL '1 day' AND "createdAt" < CURRENT_DATE`;
@@ -60,7 +65,8 @@ export async function GET(request: Request) {
   const s3AccessKey = process.env.MINIO_ACCESS_KEY || 'minioadmin';
   const s3SecretKey = process.env.MINIO_SECRET_KEY || 'miniopassword';
 
-  return new Promise((resolve) => {
+  // 2. new Promise に型引数 <NextResponse> を追加
+  return new Promise<NextResponse>((resolve) => {
     db.serialize(() => {
       db.run("INSTALL httpfs; LOAD httpfs;");
       db.run(`SET s3_endpoint='${s3Endpoint}'; SET s3_use_ssl=false; SET s3_url_style='path';`);
@@ -83,8 +89,12 @@ export async function GET(request: Request) {
       `;
 
       db.all(query, (err, rows) => {
-        if (err) resolve(NextResponse.json({ error: err.message }, { status: 500 }));
-        else resolve(NextResponse.json({ summary: rows }));
+        if (err) {
+          console.error("DuckDB Query Error:", err);
+          resolve(NextResponse.json({ error: err.message }, { status: 500 }));
+        } else {
+          resolve(NextResponse.json({ summary: rows }));
+        }
       });
     });
   });

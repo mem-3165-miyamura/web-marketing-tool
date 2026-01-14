@@ -1,7 +1,7 @@
 // app/auth/signin/page.tsx
 
 // 👈 ここでコンポーネントを正しくインポートしているか確認
-import SignInForm from '@components/SignInForm'; 
+import SignInForm from '@/components/SignInForm'; 
 
 // このページはServer Componentとしてレンダリングされます
 export default function SignInPage() {

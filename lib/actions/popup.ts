@@ -1,12 +1,12 @@
 // lib/actions/popup.ts
 "use server";
 
-import { prisma } from "@lib/prisma";
-import { auth } from "@lib/auth";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { uploadImage } from "./upload";
-import type { FormState } from "@lib/types/popup";
+import type { FormState } from "@/lib/types/popup";
 
 /**
  * 新規ポップアップを作成するServer Action

@@ -21,8 +21,8 @@ services:
     container_name: next_marketing_minio
     restart: always
     ports:
-      - "9000:9000" # API用（プログラムからの接続先）
-      - "9001:9001" # 管理画面用（ブラウザで確認: http://localhost:9001）
+      - "9000:9000" # API用
+      - "9001:9001" # 管理画面用
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: miniopassword
@@ -42,21 +42,25 @@ services:
         echo 'Waiting for MinIO...' && sleep 1; 
       done;
       
-      # 既存のpopupsバケット設定
       if ! /usr/bin/mc ls myminio/popups > /dev/null 2>&1; then
         /usr/bin/mc mb myminio/popups;
         /usr/bin/mc anonymous set public myminio/popups;
-        echo 'Bucket popups created with public access';
       fi;
 
-      # アーカイブ集計用のtracking-logsバケット追加
       if ! /usr/bin/mc ls myminio/tracking-logs > /dev/null 2>&1; then
         /usr/bin/mc mb myminio/tracking-logs;
-        echo 'Bucket tracking-logs created';
       fi;
-      
       exit 0;
       "
+
+  # 4. メール配信テスト環境 (MailHog) - 追加
+  mailhog:
+    image: mailhog/mailhog
+    container_name: next_marketing_mailhog
+    restart: always
+    ports:
+      - "1025:1025" # SMTPサーバー（プログラムからの送信先）
+      - "8025:8025" # Web管理画面（ブラウザでメールを確認）
 
 networks:
   default:

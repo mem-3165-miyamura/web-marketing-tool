@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useActionState } from 'react';
 import { useRouter } from 'next/navigation';
-import { updatePopUp } from "@lib/actions/popup";
-import { FormState } from "@lib/types/popup";
+import { updatePopUp } from "@/lib/actions/popup";
+import { FormState } from "@/lib/types/popup";
 
 export default function EditPopUpForm({ popup }: { popup: any }) {
   const router = useRouter();

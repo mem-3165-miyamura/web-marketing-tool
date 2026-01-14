@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,78 +7,107 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ユーザー（管理画面の利用者）
+enum VisitorStatus {
+  LEAD
+  PROSPECT
+  CUSTOMER
+  CHURNED
+}
+
 model User {
   id             String        @id @default(cuid())
   name           String?
   email          String        @unique
-  hashedPassword String
+  emailVerified  DateTime?
+  image          String?       // 認証エラー解消用
+  hashedPassword String?
   popups         PopUpConfig[]
+  mailConfigs    MailConfig[]
+  visitors       Visitor[]     // 追加：管理者が持つ訪問者一覧
+  
+  // 追加：顧客ステータスの判定ルール
+  statusRules    Json?         
+  
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
 
-// ポップアップの設定
-model PopUpConfig {
-  id           String   @id @default(cuid())
-  name         String   // 管理用の名前
-  enabled      Boolean  @default(true)
+model Visitor {
+  id        String        @id @default(cuid())
+  email     String        @unique
+  name      String?
+  lastVid   String        // 名寄せ用
+  status    VisitorStatus @default(LEAD)
+  
+  // 追加：どの管理者に紐付くか
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // パターンA（デフォルト）の設定
+  logs      TrackingLog[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([lastVid])
+  @@index([userId])
+}
+
+model PopUpConfig {
+  id           String        @id @default(cuid())
+  name         String
+  enabled      Boolean       @default(true)
+  type         String        @default("standard")
   title        String
   description  String
   imageUrl     String?
-  buttonText   String   @default("詳細を見る")
-  buttonLink   String   @default("#")
-
-  // パターンB（ABテスト用）の設定
-  // これらが入力されている場合、ABテストとして動作する
+  buttonText   String        @default("詳細を見る")
+  buttonLink   String        @default("#")
   titleB       String?
   descriptionB String?
   imageUrlB    String?
   buttonTextB  String?
-
-  // 共通設定
-  displayDelay Int      @default(3000) // 表示までの遅延(ms)
-
-  // 全体集計用のカウンター（簡易表示用）
-  views        Int      @default(0)
-  clicks       Int      @default(0)
-
-  // ユーザー紐付け
+  displayDelay Int           @default(3000)
+  views        Int           @default(0)
+  clicks       Int           @default(0)
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // ログとのリレーション
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   TrackingLogs TrackingLog[]
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
-// トラッキングログ（ABテストの集計に利用）
+model MailConfig {
+  id           String        @id @default(cuid())
+  name         String
+  enabled      Boolean       @default(true)
+  targetStatus VisitorStatus
+  triggerEvent String
+  subject      String
+  content      String        @db.Text
+  templateType String        @default("B2B")
+  imageUrl     String?
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([targetStatus, triggerEvent, enabled])
+}
+
 model TrackingLog {
   id           String      @id @default(cuid())
-  
-  // どのポップアップのログか
   popUpId      String
   popUpConfig  PopUpConfig @relation(fields: [popUpId], references: [id], onDelete: Cascade)
-
-  // どの訪問者のログか（スニペットで生成したvid）
   userId       String
-
-  // イベントの種類（view: 表示, click: クリック）
+  visitorId    String?
+  visitor      Visitor?    @relation(fields: [visitorId], references: [id])
   eventType    String
-
-  // ABテストのどちらのパターンを表示したか（A または B）
   pattern      String      @default("A")
-
-  // オプション情報
+  metadata     Json?
   siteId       String?
   pageUrl      String?     @db.VarChar(1000)
-  
   createdAt    DateTime    @default(now())
 
-  // 集計を高速化するためのインデックス
   @@index([popUpId, eventType, pattern])
+  @@index([userId])
+  @@index([visitorId])
 }

@@ -2,7 +2,7 @@
 
 import NextAuth from "next-auth";
 // 修正点: lib/auth からインポート
-import { authOptions } from "@lib/auth"; 
+import { authOptions } from "@/lib/auth"; 
 
 // Auth.jsの認証オプションをエクスポートする標準的な実装
 const handler = NextAuth(authOptions);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { archivePostgresToParquet, ArchiveResult } from '@lib/duckdb-archive';
+import { archivePostgresToParquet, ArchiveResult } from '@/lib/duckdb-archive';
 
 /**
  * 1日1回のアーカイブバッチ用エンドポイント

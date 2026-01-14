@@ -4,7 +4,7 @@
 import { useState } from "react";
 
 // サーバーアクションをインポート
-import { signOutAction } from "@/actions/signOutAction";
+import { signOutAction } from "@/app/actions/signOutAction";
 
 export default function SignOutButton() {
   const [isProcessing, setIsProcessing] = useState(false);

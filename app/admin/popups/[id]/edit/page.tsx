@@ -1,8 +1,8 @@
 //app/popups/[id]/edit/page.tsx
-import { prisma } from "@lib/prisma";
-import { auth } from "@lib/auth";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import EditPopUpForm from "@components/EditPopUpForm"; // 💡 作成したフォームをインポート
+import EditPopUpForm from "@/components/EditPopUpForm"; // 💡 作成したフォームをインポート
 
 interface PageProps {
   params: Promise<{ id: string }>;

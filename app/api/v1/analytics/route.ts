@@ -1,10 +1,9 @@
-//app/api/v1/analytics/route.ts
 import { NextResponse } from 'next/server';
 import duckdb from 'duckdb';
 
 const db = new duckdb.Database(':memory:');
 
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<NextResponse> { // 1. 関数の戻り値の型を明示
   const { searchParams } = new URL(request.url);
   const popUpId = searchParams.get('popUpId');
 
@@ -12,12 +11,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'popUpId is required' }, { status: 400 });
   }
 
-  // 接続設定（archiveと同じもの）
   const s3Endpoint = (process.env.MINIO_ENDPOINT || 'localhost:9000').replace('http://', '');
   const s3AccessKey = process.env.MINIO_ACCESS_KEY || 'minioadmin';
   const s3SecretKey = process.env.MINIO_SECRET_KEY || 'miniopassword';
 
-  return new Promise((resolve) => {
+  // 2. new Promise に型引数 <NextResponse> を追加
+  return new Promise<NextResponse>((resolve) => {
     db.serialize(() => {
       db.run("INSTALL httpfs; LOAD httpfs;");
       db.run(`SET s3_endpoint='${s3Endpoint}';`);
@@ -26,8 +25,6 @@ export async function GET(request: Request) {
       db.run(`SET s3_use_ssl=false;`);
       db.run(`SET s3_url_style='path';`);
 
-      // ABテストの集計クエリ
-      // 指定したpopUpIdのParquetファイルを読み取って、パターンごとの表示・クリック・CTRを算出
       const query = `
         SELECT 
           pattern, 

@@ -1,6 +1,6 @@
 "use client";
 
-import { deletePopUp } from "@lib/actions/popup";
+import { deletePopUp } from "@/lib/actions/popup";
 import { useRouter } from "next/navigation";
 
 interface Props {

@@ -2,7 +2,7 @@
 "use server";
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client } from "@lib/s3";
+import { s3Client } from "@/lib/s3";
 import sharp from "sharp";
 import { v4 as uuidv4 } from "uuid"; // npm install uuid を推奨（またはタイムスタンプで代用）
 
