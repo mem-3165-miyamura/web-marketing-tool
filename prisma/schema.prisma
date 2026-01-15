@@ -94,18 +94,20 @@ model MailConfig {
 }
 
 model TrackingLog {
-  id           String      @id @default(cuid())
-  popUpId      String
-  popUpConfig  PopUpConfig @relation(fields: [popUpId], references: [id], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  // 修正：popUpId を String? (Optional) に変更
+  popUpId      String?
+  // 修正：popUpConfig を PopUpConfig? (Optional) に変更し、onDelete を SetNull に
+  popUpConfig  PopUpConfig? @relation(fields: [popUpId], references: [id], onDelete: SetNull)
   userId       String
   visitorId    String?
-  visitor      Visitor?    @relation(fields: [visitorId], references: [id])
+  visitor      Visitor?     @relation(fields: [visitorId], references: [id])
   eventType    String
-  pattern      String      @default("A")
+  pattern      String       @default("A")
   metadata     Json?
   siteId       String?
-  pageUrl      String?     @db.VarChar(1000)
-  createdAt    DateTime    @default(now())
+  pageUrl      String?      @db.VarChar(1000)
+  createdAt    DateTime     @default(now())
 
   @@index([popUpId, eventType, pattern])
   @@index([userId])

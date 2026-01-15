@@ -11,9 +11,6 @@ import { Prisma, VisitorStatus } from "@prisma/client";
 
 type FilterStatus = VisitorStatus | "ALL";
 
-/**
- * Prisma + include 使用時は必ず Payload 型を明示
- */
 type VisitorWithLogs = Prisma.VisitorGetPayload<{
   include: {
     logs: {
@@ -24,9 +21,6 @@ type VisitorWithLogs = Prisma.VisitorGetPayload<{
   };
 }>;
 
-/**
- * URL クエリ安全判定
- */
 const isVisitorStatus = (v: any): v is VisitorStatus =>
   Object.values(VisitorStatus).includes(v);
 
@@ -34,22 +28,24 @@ const isVisitorStatus = (v: any): v is VisitorStatus =>
  * Page Component
  * ------------------ */
 
-export default async function VisitorsPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; status?: string };
+export default async function VisitorsPage(props: {
+  // Next.js 15+ では searchParams は Promise になります
+  searchParams: Promise<{ page?: string; status?: string }>;
 }) {
   /* ---------- Auth ---------- */
   const session = await auth();
   if (!session) redirect("/api/auth/signin");
 
   /* ---------- Params ---------- */
+  // searchParams を await して中身を取り出します
+  const searchParams = await props.searchParams;
+  
   const page = Number(searchParams.page) || 1;
   const pageSize = 10;
 
   const currentStatus: FilterStatus =
     searchParams.status && isVisitorStatus(searchParams.status)
-      ? searchParams.status
+      ? (searchParams.status as FilterStatus)
       : "ALL";
 
   /* ---------- Prisma where ---------- */
@@ -79,7 +75,6 @@ export default async function VisitorsPage({
   });
 
   /* ---------- UI constants ---------- */
-
   const tabs: { label: string; value: FilterStatus }[] = [
     { label: "すべて", value: "ALL" },
     { label: "検討中", value: "LEAD" },
@@ -96,7 +91,6 @@ export default async function VisitorsPage({
   };
 
   /* ---------- Render ---------- */
-
   return (
     <div className="min-h-screen bg-gray-50 p-8 text-gray-900 font-sans">
       <div className="max-w-6xl mx-auto">
@@ -114,7 +108,7 @@ export default async function VisitorsPage({
             </h1>
           </div>
           <Link
-            href="/"
+            href="/admin"
             className="text-sm font-bold text-gray-500 hover:text-gray-900 border px-4 py-2 rounded-xl bg-white shadow-sm transition-all hover:shadow-md"
           >
             ← ダッシュボードへ
@@ -141,13 +135,8 @@ export default async function VisitorsPage({
 
           {currentStatus !== "ALL" && totalCount > 0 && (
             <button className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 uppercase tracking-widest group">
-              <span className="text-lg group-hover:rotate-12 transition-transform">
-                ⚡️
-              </span>
-              {
-                tabs.find((t) => t.value === currentStatus)?.label
-              }
-              セグメントにMAを実行
+              <span className="text-lg group-hover:rotate-12 transition-transform">⚡️</span>
+              {tabs.find((t) => t.value === currentStatus)?.label}セグメントにMAを実行
             </button>
           )}
         </div>
@@ -174,11 +163,7 @@ export default async function VisitorsPage({
                         {visitor.email}
                       </h2>
                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">
-                        LAST ACTIVITY:{" "}
-                        {format(
-                          new Date(visitor.updatedAt),
-                          "yyyy/MM/dd HH:mm"
-                        )}
+                        LAST ACTIVITY: {format(new Date(visitor.updatedAt), "yyyy/MM/dd HH:mm")}
                       </p>
                     </div>
                   </div>
@@ -192,34 +177,25 @@ export default async function VisitorsPage({
                   </span>
                 </div>
 
-                {/* Logs */}
                 <div className="px-8 pb-8 overflow-x-auto">
                   <table className="w-full text-left text-[11px] font-bold text-gray-500">
                     <thead className="text-[9px] font-black text-gray-300 uppercase tracking-widest border-b border-gray-50">
                       <tr>
                         <th className="pb-4 px-2">Timestamp</th>
                         <th className="pb-4 px-2">Action</th>
-                        <th className="pb-4 px-2">
-                          Campaign / Page Path
-                        </th>
+                        <th className="pb-4 px-2">Campaign / Page Path</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {visitor.logs.map((log) => (
                         <tr key={log.id}>
                           <td className="py-4 px-2 text-gray-400">
-                            {format(
-                              new Date(log.createdAt),
-                              "MM/dd HH:mm:ss"
-                            )}
+                            {format(new Date(log.createdAt), "MM/dd HH:mm:ss")}
                           </td>
-                          <td className="py-4 px-2">
-                            {log.eventType}
-                          </td>
+                          <td className="py-4 px-2">{log.eventType}</td>
                           <td className="py-4 px-2">
                             <div className="font-black text-gray-700">
-                              {log.popUpConfig?.name ??
-                                "Global Tracking"}
+                              {log.popUpConfig?.name ?? "Global Tracking"}
                             </div>
                             <div className="text-[10px] text-gray-300 truncate max-w-sm">
                               {log.pageUrl || "/"}
@@ -234,12 +210,7 @@ export default async function VisitorsPage({
             ))
           ) : (
             <div className="bg-white border-2 border-dashed border-gray-200 rounded-[48px] py-40 text-center shadow-inner">
-              <p className="text-gray-300 font-black text-2xl uppercase tracking-[0.3em] italic">
-                No Leads Found
-              </p>
-              <p className="text-gray-400 text-sm mt-4 font-bold uppercase tracking-widest">
-                対象のセグメントに該当するデータはありません
-              </p>
+              <p className="text-gray-300 font-black text-2xl uppercase tracking-[0.3em] italic">No Leads Found</p>
             </div>
           )}
         </div>
@@ -248,33 +219,20 @@ export default async function VisitorsPage({
         {totalPages > 1 && (
           <div className="mt-16 flex justify-center items-center gap-4">
             <Link
-              href={`/admin/visitors?page=${Math.max(
-                1,
-                page - 1
-              )}&status=${currentStatus}`}
+              href={`/admin/visitors?page=${Math.max(1, page - 1)}&status=${currentStatus}`}
               className={`px-6 py-3 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black ${
-                page <= 1
-                  ? "opacity-20 pointer-events-none"
-                  : "hover:bg-gray-900 hover:text-white"
+                page <= 1 ? "opacity-20 pointer-events-none" : "hover:bg-gray-900 hover:text-white"
               }`}
             >
               PREV
             </Link>
-
             <div className="bg-white border-2 border-gray-100 px-8 py-3 rounded-2xl text-[10px] font-black tracking-[0.2em] text-gray-400">
-              PAGE <span className="text-blue-600">{page}</span> /
-              {totalPages}
+              PAGE <span className="text-blue-600">{page}</span> /{totalPages}
             </div>
-
             <Link
-              href={`/admin/visitors?page=${Math.min(
-                totalPages,
-                page + 1
-              )}&status=${currentStatus}`}
+              href={`/admin/visitors?page=${Math.min(totalPages, page + 1)}&status=${currentStatus}`}
               className={`px-6 py-3 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black ${
-                page >= totalPages
-                  ? "opacity-20 pointer-events-none"
-                  : "hover:bg-gray-900 hover:text-white"
+                page >= totalPages ? "opacity-20 pointer-events-none" : "hover:bg-gray-900 hover:text-white"
               }`}
             >
               NEXT

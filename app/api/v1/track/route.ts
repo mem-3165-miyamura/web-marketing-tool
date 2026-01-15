@@ -46,12 +46,15 @@ async function executeMailSend(visitor: any, config: any, adminId: string, popUp
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { popUpId, event, vid, email, metadata, pageUrl, userId: adminUserId } = body;
+    const { popUpId, event, vid, email, metadata, pageUrl, userId: adminUserId, pattern } = body;
     const currentVid = vid || "unknown";
-    const targetId = popUpId === "system_identify" ? "system_identify" : popUpId;
+    
+    // システムイベント（identify等）を除いた、純粋なポップアップIDを特定
+    const isRealPopUp = popUpId && popUpId !== "system_identify" && !popUpId.startsWith("system_");
+    const targetId = popUpId || null;
 
     console.log("--- 🕵️ MA Tracking & Delivery Diagnostic ---");
-    console.log(`Event: [${event}], Email: [${email}], User: [${adminUserId}]`);
+    console.log(`Event: [${event}], Email: [${email}], User: [${adminUserId}], PopUp: [${targetId}]`);
     
     // 1. 行動ログを保存
     const newLog = await prisma.trackingLog.create({
@@ -59,10 +62,27 @@ export async function POST(request: Request) {
         userId: adminUserId || "system",
         eventType: event,
         popUpId: targetId,
+        pattern: pattern || "A",
         metadata: metadata || {},
         pageUrl: pageUrl || null,
       },
     });
+
+    // ★追加: PopUpConfig側のカウンター（views/clicks）をインクリメント
+    if (isRealPopUp && (event === "view" || event === "click")) {
+      try {
+        await prisma.popUpConfig.update({
+          where: { id: popUpId },
+          data: {
+            [event === "view" ? "views" : "clicks"]: { increment: 1 },
+          },
+        });
+        console.log(`📈 Incremented ${event} for PopUp: ${popUpId}`);
+      } catch (updateError) {
+        // IDが存在しない等のエラーをハンドリング
+        console.error("⚠️ Failed to increment PopUp counter:", updateError);
+      }
+    }
 
     let targetVisitor = null;
     let isStatusChanged = false;
@@ -81,7 +101,7 @@ export async function POST(request: Request) {
         },
       });
       
-      // ログの紐付け（今回のログと過去の浮遊ログをVisitorに紐付け）
+      // ログの紐付け
       await prisma.trackingLog.updateMany({
         where: { 
           visitorId: null,
@@ -104,7 +124,6 @@ export async function POST(request: Request) {
 
       const nextStatus = calculateNewStatus(allLogs, adminUser?.statusRules);
 
-      // ステータスが昇格/変化した場合
       if (targetVisitor.status !== nextStatus) {
         const oldStatus = targetVisitor.status;
         targetVisitor = await prisma.visitor.update({
@@ -121,7 +140,6 @@ export async function POST(request: Request) {
     }
 
     // 4. メール配信ロジックの照合
-    // 昇格があった場合は「新しいステータス」、なかった場合は「現在のステータス」で検索
     const activeMailConfig = await prisma.mailConfig.findFirst({
       where: { 
         targetStatus: targetVisitor.status as any, 
@@ -133,9 +151,7 @@ export async function POST(request: Request) {
 
     if (activeMailConfig) {
       console.log(`🎯 Match Found: [${activeMailConfig.name}] for Status [${targetVisitor.status}]`);
-      await executeMailSend(targetVisitor, activeMailConfig, adminUserId, targetId);
-    } else {
-      console.log(`❌ No MailConfig match for Status:[${targetVisitor.status}] Event:[${event}]`);
+      await executeMailSend(targetVisitor, activeMailConfig, adminUserId, targetId || "system");
     }
 
     return NextResponse.json({ 

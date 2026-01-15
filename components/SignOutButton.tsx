@@ -1,33 +1,23 @@
-// components/SignOutButton.tsx
 "use client";
 
+import { signOut } from "next-auth/react";
 import { useState } from "react";
-
-// サーバーアクションをインポート
-import { signOutAction } from "@/app/actions/signOutAction";
 
 export default function SignOutButton() {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // サインアウトボタンがクリックされたらサーバーアクションを呼び出す
   const handleSignOut = async () => {
     setIsProcessing(true);
-    await signOutAction();
-    setIsProcessing(false);
+    await signOut({
+      callbackUrl: "/auth/signin",
+    });
   };
 
   return (
     <button
       onClick={handleSignOut}
-      style={{
-        padding: '10px 20px',
-        backgroundColor: '#e53e3e',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-      }}
       disabled={isProcessing}
+      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 font-medium"
     >
       {isProcessing ? "サインアウト中..." : "サインアウト"}
     </button>

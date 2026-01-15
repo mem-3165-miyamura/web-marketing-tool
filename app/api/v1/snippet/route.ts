@@ -6,10 +6,11 @@ export async function GET(request: Request) {
 
   if (!uid) return new NextResponse('// Missing uid', { headers: { 'Content-Type': 'application/javascript' } });
 
+  // 修正ポイント: ポートを 3001 (マーケツール側) に向けます
   const snippet = `
 (function() {
   const UID = "${uid}";
-  const API_BASE = "http://localhost:3000/api/v1";
+  const API_BASE = "http://localhost:3001/api/v1"; 
   let vid = localStorage.getItem('v_id') || 'v_' + Math.random().toString(36).substring(2, 15);
   localStorage.setItem('v_id', vid);
 
@@ -19,11 +20,12 @@ export async function GET(request: Request) {
       await fetch(API_BASE + "/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        mode: "cors",
+        mode: "cors", // 3000から3001への通信を許可するために必要
         body: JSON.stringify({ 
           popUpId, 
           event: eventType, 
           vid, 
+          userId: UID, // 管理者IDとしてUIDを送信
           pattern: pattern || "A",
           pageUrl: window.location.href,
           ...extra 
@@ -34,9 +36,7 @@ export async function GET(request: Request) {
 
   // --- 名寄せ（Identify）専用ロジック ---
   const identifyUser = (email, name = null) => {
-    // ページ内の一番最初のポップアップIDを代表として使用（またはUIDそのものを活用）
-    // ここでは仕組み上、UIDに紐づく最初のログとして飛ばすか、共通管理用IDを使用
-    trackEvent("system_identify", "identify", "A", { 
+    trackEvent(null, "identify", "A", { 
       email: email, 
       metadata: { name: name, source: "auto_capture" } 
     });
@@ -53,7 +53,6 @@ export async function GET(request: Request) {
   window.addEventListener('submit', function(e) {
     const emailInput = e.target.querySelector('input[type="email"], input[name*="email"]');
     if (emailInput && emailInput.value) {
-      // 名前入力フィールドがあればついでに拾う
       const nameInput = e.target.querySelector('input[name*="name"], input[id*="name"]');
       identifyUser(emailInput.value, nameInput ? nameInput.value : null);
     }
@@ -92,7 +91,10 @@ export async function GET(request: Request) {
 
           document.getElementById('btn-'+config.id).onclick = () => {
             trackEvent(config.id, "click", pattern);
-            if (config.buttonLink) window.open(config.buttonLink, '_blank');
+            if (config.buttonLink) {
+                if(config.buttonLink.startsWith('http')) window.open(config.buttonLink, '_blank');
+                else window.location.href = config.buttonLink;
+            }
           };
         }, config.displayDelay || 0);
       });
@@ -102,5 +104,10 @@ export async function GET(request: Request) {
 })();
   `;
 
-  return new NextResponse(snippet, { headers: { 'Content-Type': 'application/javascript', 'Access-Control-Allow-Origin': '*' } });
+  return new NextResponse(snippet, { 
+    headers: { 
+      'Content-Type': 'application/javascript', 
+      'Access-Control-Allow-Origin': '*' 
+    } 
+  });
 }

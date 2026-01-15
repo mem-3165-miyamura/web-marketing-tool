@@ -1,4 +1,3 @@
-// lib/auth.ts
 import NextAuth, { type AuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Google from "next-auth/providers/google";
@@ -7,21 +6,16 @@ import { prisma } from "./prisma";
 import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
 
-// -------------------------------
-// 1. NextAuth 設定
-// -------------------------------
+// 1. NextAuth 設定をエクスポート（外部から参照可能にする）
 export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma),
-
   providers: [
-    // Google OAuth
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
-
-    // Email + Password
     Credentials({
+      name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
@@ -43,7 +37,7 @@ export const authOptions: AuthOptions = {
         if (!isValid) return null;
 
         return {
-          id: user.id, // ← 必須
+          id: user.id,
           name: user.name,
           email: user.email,
           image: user.image,
@@ -51,20 +45,16 @@ export const authOptions: AuthOptions = {
       },
     }),
   ],
-
   session: {
     strategy: "jwt",
   },
-
   callbacks: {
-    // JWT に userId を保存
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-    // session.user に userId を注入
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
@@ -72,22 +62,16 @@ export const authOptions: AuthOptions = {
       return session;
     },
   },
-
   pages: {
     signIn: "/auth/signin",
   },
+  // 修正ポイント：シークレットを明示的に指定
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
-// -------------------------------
 // 2. API Route 用ハンドラ
-// -------------------------------
 export const authHandler = NextAuth(authOptions);
 
-// -------------------------------
-// 3. Server Component / Server Action 用セッション取得
-// -------------------------------
-
-export const auth = async () => {
-  const session = await getServerSession(authOptions);
-  return session;
-};
+// 3. Server Component / Server Action 用セッション取得関数
+// これにより、await auth() でセッションが取得可能になります
+export const auth = () => getServerSession(authOptions);

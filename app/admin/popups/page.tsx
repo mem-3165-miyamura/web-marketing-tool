@@ -4,27 +4,37 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import DeletePopupButton from "@/components/DeletePopupButton";
 
-export default async function AdminDashboard() {
+export default async function PopupsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/api/auth/signin");
 
   const userId = session.user.id;
 
-  // ポップアップと統計をまとめて取得
+  // ポップアップを取得
   const popups = await prisma.popUpConfig.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' }
   });
 
+  // 統計ログを集計
   const statsLogs = await prisma.trackingLog.groupBy({
     by: ['popUpId', 'pattern', 'eventType'],
-    where: { popUpId: { in: popups.map(p => p.id) } },
+    where: { 
+      popUpId: { in: popups.map(p => p.id) },
+      NOT: { popUpId: null } 
+    },
     _count: true
   });
 
+  // 統計マップの作成
   const statsMap = statsLogs.reduce((acc: any, log) => {
-    if (!acc[log.popUpId]) acc[log.popUpId] = { A: { view: 0, click: 0 }, B: { view: 0, click: 0 } };
-    acc[log.popUpId][log.pattern as 'A' | 'B'][log.eventType as 'view' | 'click'] = log._count;
+    const pid = log.popUpId;
+    if (!pid) return acc;
+    if (!acc[pid]) acc[pid] = { A: { view: 0, click: 0 }, B: { view: 0, click: 0 } };
+    
+    const pattern = (log.pattern || "A") as 'A' | 'B';
+    const type = log.eventType as 'view' | 'click';
+    acc[pid][pattern][type] = log._count;
     return acc;
   }, {});
 
@@ -34,8 +44,8 @@ export default async function AdminDashboard() {
   return (
     <div className="p-8">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">全体サマリー</h1>
-        <p className="text-gray-500">マーケティング施策の稼働状況を確認できます</p>
+        <h1 className="text-2xl font-bold text-gray-800">施策パフォーマンス・ダッシュボード</h1>
+        <p className="text-gray-500">各Web接客施策のエンゲージメントとコンバージョン推移</p>
       </header>
 
       {/* 統計カード */}
@@ -51,7 +61,7 @@ export default async function AdminDashboard() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
           <span className="text-xs font-bold text-gray-400 uppercase">リード獲得数</span>
           <p className="text-3xl font-black mt-1 text-blue-600">
-            {await prisma.visitor.count()} <span className="text-sm font-normal text-gray-400">名</span>
+            {await prisma.visitor.count({ where: { userId } })} <span className="text-sm font-normal text-gray-400">名</span>
           </p>
         </div>
       </div>
@@ -60,7 +70,7 @@ export default async function AdminDashboard() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b flex justify-between items-center">
           <h2 className="font-bold">アクティブな接客施策</h2>
-          <Link href="/popups/new" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">
+          <Link href="/admin/popups/new" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">
             + 新規作成
           </Link>
         </div>
@@ -87,7 +97,7 @@ export default async function AdminDashboard() {
                   <td className="p-4">{!!popup.titleB ? `${ctrB}%` : '-'}</td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      <Link href={`/popups/${popup.id}/edit`} className="text-blue-600 hover:underline">編集</Link>
+                      <Link href={`/admin/popups/${popup.id}/edit`} className="text-blue-600 hover:underline">編集</Link>
                       <DeletePopupButton popupId={popup.id} />
                     </div>
                   </td>
