@@ -1,6 +1,30 @@
 version: '3.8'
 
 services:
+  # 追加：マーケティングツール本体 (API & スクリプト配信)
+  app:
+    image: node:20-alpine
+    container_name: next_marketing_app
+    working_dir: /app
+    ports:
+      - "3001:3000" # ホストの3001番を、コンテナ内の3000番に繋ぐ
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/marketing_tool
+      - PORT=3000
+    volumes:
+      - ./app:/app
+    # appフォルダ内にコードがあれば起動、なければ待機するように設定
+    command: >
+      sh -c "if [ -f package.json ]; then
+               npm install && npm run dev;
+             else
+               echo 'No package.json found. Please set up the app directory.';
+               tail -f /dev/null;
+             fi"
+    depends_on:
+      - db
+      - minio
+
   # 1. データベース (PostgreSQL)
   db:
     image: postgres:15-alpine
@@ -21,8 +45,8 @@ services:
     container_name: next_marketing_minio
     restart: always
     ports:
-      - "9000:9000" # API用
-      - "9001:9001" # 管理画面用
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: miniopassword
@@ -53,14 +77,14 @@ services:
       exit 0;
       "
 
-  # 4. メール配信テスト環境 (MailHog) - 追加
+  # 4. メール配信テスト環境 (MailHog)
   mailhog:
     image: mailhog/mailhog
     container_name: next_marketing_mailhog
     restart: always
     ports:
-      - "1025:1025" # SMTPサーバー（プログラムからの送信先）
-      - "8025:8025" # Web管理画面（ブラウザでメールを確認）
+      - "1025:1025"
+      - "8025:8025"
 
 networks:
   default:
