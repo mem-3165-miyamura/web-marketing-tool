@@ -2,9 +2,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Prisma 7.2.0 以降の仕様: url プロパティを記述せず prisma.config.cjs 側で管理
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum VisitorStatus {
@@ -24,7 +24,7 @@ model User {
   popups         PopUpConfig[]
   mailConfigs    MailConfig[]
   visitors       Visitor[]     
-  products       Product[]     // 管理者が登録した商品マスター
+  products       Product[]     // 管理者が登録した商品マスター（CMS機能）
   
   statusRules    Json?         
   
@@ -33,24 +33,24 @@ model User {
 }
 
 model Visitor {
-  id        String        @id @default(cuid())
-  email     String        @unique
-  name      String?
-  lastVid   String        
-  status    VisitorStatus @default(LEAD)
+  id         String        @id @default(cuid())
+  email      String        @unique
+  name       String?
+  lastVid    String        
+  status     VisitorStatus @default(LEAD)
   
-  userId    String
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  logs      TrackingLog[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  logs       TrackingLog[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   @@index([lastVid])
   @@index([userId])
 }
 
-// Headless CMS機能としてのプロダクトモデル
+// 🛒 Headless CMS機能としてのプロダクトモデル
 model Product {
   id          String   @id @default(cuid())
   name        String   
@@ -60,10 +60,10 @@ model Product {
   category    String   
   stock       Int      @default(0) 
   
-  isPublished Boolean  @default(true)  
-  isSale      Boolean  @default(false) 
-  priority    Int      @default(0)     
-  campaignTag String?  
+  isPublished Boolean  @default(true)  // 販売終了・非公開管理
+  isSale      Boolean  @default(false) // セールラベル用
+  priority    Int      @default(0)     // おすすめ順などの並び替え用
+  campaignTag String?  // 「冬物セール」「限定品」などのタグ
 
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { auth } from "@/lib/auth"; // 修正：lib/authからauthヘルパーをインポート
+import { auth } from "@/lib/auth"; 
 import { redirect } from "next/navigation";
 
 export default async function AdminLayout({
@@ -8,18 +8,20 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // セッションチェック（lib/authのヘルパーを使用）
+  // セッションチェック
   const session = await auth();
   
   if (!session) {
     redirect("/");
   }
 
+  // メニュー項目に「商品マスター (CMS)」を追加
   const menuItems = [
     { name: "ダッシュボード", href: "/admin", icon: "📊" },
     { name: "ポップアップ設定", href: "/admin/popups", icon: "🪟" },
     { name: "顧客一覧 (Visitors)", href: "/admin/visitors", icon: "👥" },
     { name: "メール配信設定 (MA)", href: "/admin/mail-configs", icon: "📧" },
+    { name: "商品マスター (CMS)", href: "/admin/products", icon: "📦" },
   ];
 
   return (
