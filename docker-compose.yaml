@@ -1,24 +1,24 @@
-version: '3.8'
-
 services:
-  # 追加：マーケティングツール本体 (API & スクリプト配信)
+  # マーケティングツール本体 (API & CMS機能)
   app:
     image: node:20-alpine
     container_name: next_marketing_app
     working_dir: /app
     ports:
-      - "3001:3000" # ホストの3001番を、コンテナ内の3000番に繋ぐ
+      - "3001:3000"
     environment:
       - DATABASE_URL=postgresql://admin:password@db:5432/marketing_tool
       - PORT=3000
     volumes:
-      - ./app:/app
-    # appフォルダ内にコードがあれば起動、なければ待機するように設定
+      - .:/app
+      - /app/node_modules
     command: >
-      sh -c "if [ -f package.json ]; then
+      sh -c "apk add --no-cache python3 make g++ && 
+             if [ -f package.json ]; then
                npm install && npm run dev;
              else
                echo 'No package.json found. Please set up the app directory.';
+               ls -la;
                tail -f /dev/null;
              fi"
     depends_on:

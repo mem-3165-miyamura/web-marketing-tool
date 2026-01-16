@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from "@/lib/prisma";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
-import * as parquet from 'parquetjs-lite'; // 型定義と合わせて変数名を修正
+import * as parquet from 'parquetjs-lite';
 import fs from 'fs';
 import path from 'path';
 
@@ -33,7 +33,10 @@ export async function GET(request: Request) {
 
     const report = { archived: [] as string[], deleted: [] as string[], errors: [] as string[] };
 
-    // --- メインループ：最古から昨日までを1日ずつ精査 ---
+    // 一時ディレクトリの確保（ローカル環境対策）
+    const tmpDir = './tmp';
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+
     while (cursorDate < today) {
       const dateStr = cursorDate.toISOString().split('T')[0];
       const fileName = `logs_${dateStr}.parquet`;
@@ -41,7 +44,6 @@ export async function GET(request: Request) {
       const end = new Date(cursorDate);
       end.setHours(23, 59, 59, 999);
 
-      // 1. S3にファイルが存在するか確認
       let s3Exists = false;
       try {
         await s3.send(new HeadObjectCommand({ Bucket: "tracking-logs", Key: fileName }));
@@ -50,59 +52,67 @@ export async function GET(request: Request) {
         s3Exists = false;
       }
 
-      // 2. DBにその日のデータが存在するか確認
       const dbCount = await prisma.trackingLog.count({
         where: { createdAt: { gte: start, lte: end } }
       });
 
-      // --- アーカイブ（救出）ロジック ---
-      // S3にないがDBにはある場合、ファイルを生成してアップロード（例2, 例3のリカバリ）
       if (!s3Exists && dbCount > 0) {
         const logs = await prisma.trackingLog.findMany({ where: { createdAt: { gte: start, lte: end } } });
-        const filePath = path.join('/tmp', fileName);
+        const filePath = path.join(tmpDir, fileName);
+        let writer;
         
         try {
+          // --- スキーマ定義：DuckDBとの互換性と構成変更への強さを両立 ---
           const schema = new parquet.ParquetSchema({
             id: { type: 'UTF8' },
-            popUpId: { type: 'UTF8' },
-            pattern: { type: 'UTF8' },
-            eventType: { type: 'UTF8' },
+            popUpId: { type: 'UTF8', optional: true },
+            userId: { type: 'UTF8', optional: true },
+            visitorId: { type: 'UTF8', optional: true },
+            siteId: { type: 'UTF8', optional: true },
+            pageUrl: { type: 'UTF8', optional: true },
+            eventType: { type: 'UTF8', optional: true },
+            pattern: { type: 'UTF8', optional: true },
+            metadata: { type: 'UTF8', optional: true },
             createdAt: { type: 'TIMESTAMP_MILLIS' },
           });
 
-          const writer = await parquet.ParquetWriter.openFile(schema, filePath);
+          writer = await parquet.ParquetWriter.openFile(schema, filePath);
           for (const log of logs) {
+            // undefined対策：nullまたは空文字でガード
             await writer.appendRow({
-              id: log.id,
-              popUpId: log.popUpId,
-              pattern: log.pattern,
-              eventType: log.eventType,
-              createdAt: log.createdAt.getTime(),
+              id: String(log.id),
+              popUpId: (log as any).popUpId || null,
+              userId: (log as any).userId || null,
+              visitorId: (log as any).visitorId || null,
+              siteId: (log as any).siteId || null,
+              pageUrl: (log as any).pageUrl || null,
+              eventType: log.eventType || null,
+              pattern: log.pattern || null,
+              metadata: (log as any).metadata ? JSON.stringify((log as any).metadata) : null,
+              createdAt: log.createdAt ? log.createdAt.getTime() : Date.now(),
             });
           }
           await writer.close();
 
-          const fileStream = fs.createReadStream(filePath);
+          const fileBuffer = fs.readFileSync(filePath);
           await s3.send(new PutObjectCommand({ 
             Bucket: "tracking-logs", 
             Key: fileName, 
-            Body: fileStream 
+            Body: fileBuffer 
           }));
           
-          fs.unlinkSync(filePath); // 一時ファイルを削除
-          s3Exists = true; // 次の削除判定のために存在フラグを立てる
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+          s3Exists = true;
           report.archived.push(dateStr);
         } catch (err: any) {
-          report.errors.push(`${dateStr}: Archive failed - ${err.message}`);
+          if (writer) await writer.close().catch(() => {});
+          // エラーメッセージの可視化（undefined回避）
+          const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
+          report.errors.push(`${dateStr}: Archive failed - ${errMsg}`);
         }
       }
 
-      // --- クリーンアップ（削除）ロジック ---
-      // 基準日：今日から7日以上前
       const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      
-      // S3に保存済み、かつ7日以上前のデータであればDBから削除（例2, 例3の完了分）
-      // 7日以内であれば、S3にあってもDBに残す（例1の仕様）
       if (s3Exists && cursorDate < sevenDaysAgo) {
         if (dbCount > 0) {
           await prisma.trackingLog.deleteMany({ where: { createdAt: { gte: start, lte: end } } });
@@ -110,7 +120,6 @@ export async function GET(request: Request) {
         }
       }
 
-      // 次の日へ移動
       cursorDate.setDate(cursorDate.getDate() + 1);
     }
 
@@ -118,6 +127,6 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error("Archive System Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Unknown error" }, { status: 500 });
   }
 }

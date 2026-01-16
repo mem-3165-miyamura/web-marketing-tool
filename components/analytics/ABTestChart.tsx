@@ -1,15 +1,16 @@
+//components/analytics/ABTestChart.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Cell
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
 } from 'recharts';
 
 type Period = 'today' | 'yesterday' | 'week' | 'month' | 'all';
@@ -22,10 +23,6 @@ interface ABTestData {
   nonClicks: number;
 }
 
-/**
- * ABTestChart コンポーネント
- * 特定のポップアップの A/B パターン別成果を比較・可視化します
- */
 export default function ABTestChart({ popUpId }: { popUpId: string }) {
   const [data, setData] = useState<ABTestData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,39 +31,53 @@ export default function ABTestChart({ popUpId }: { popUpId: string }) {
 
   useEffect(() => {
     setIsMounted(true);
-    async function fetchData() {
-      if (!popUpId) return;
+  }, []);
+
+  useEffect(() => {
+    if (!popUpId) return;
+
+    const fetchData = async () => {
       setLoading(true);
       try {
-        // API パスをプロジェクト標準の v1 構成に合わせる
-        const res = await fetch(`/api/v1/analytics/ab-test?popUpId=${popUpId}&period=${period}`, { 
-          cache: 'no-store' 
-        });
-        
-        if (!res.ok) throw new Error('Failed to fetch analytics');
-        
+        const res = await fetch(
+          `/api/v1/analytics/ab-test?popUpId=${popUpId}&period=${period}`,
+          { cache: 'no-store' }
+        );
+
+        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+
         const result = await res.json();
-        
-        if (result.summary) {
-          const formattedData = result.summary.map((item: any) => ({
-            ...item,
-            ctr: Number(item.ctr),
-            // 表示数からクリック数を引いて「未クリック（グレー部分）」を算出
-            nonClicks: Math.max(0, Number(item.views) - Number(item.clicks))
-          }));
+
+        if (Array.isArray(result.summary)) {
+          const formattedData: ABTestData[] = result.summary.map((item: any) => {
+            const views = Number(item.views) || 0;
+            const clicks = Number(item.clicks) || 0;
+            return {
+              pattern: item.pattern,
+              views,
+              clicks,
+              ctr: Number(item.ctr) || 0,
+              nonClicks: Math.max(0, views - clicks),
+            };
+          });
           setData(formattedData);
+        } else {
+          setData([]);
         }
       } catch (error) {
-        console.error("Fetch error:", error);
+        console.error('Fetch error:', error);
+        setData([]);
       } finally {
         setLoading(false);
       }
-    }
+    };
+
     fetchData();
   }, [popUpId, period]);
 
-  // Recharts のハイドレーションエラー（サーバーとクライアントの差異）を防ぐ
-  if (!isMounted) return <div className="h-[400px] w-full bg-gray-50 rounded-2xl animate-pulse" />;
+  if (!isMounted) {
+    return <div className="h-[400px] w-full bg-gray-50 rounded-2xl animate-pulse" />;
+  }
 
   const periods: { label: string; value: Period }[] = [
     { label: '今日', value: 'today' },
@@ -78,16 +89,14 @@ export default function ABTestChart({ popUpId }: { popUpId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* 期間選択タブ */}
+      {/* 期間切り替え */}
       <div className="flex bg-gray-100 p-1.5 rounded-2xl w-fit border border-gray-200">
         {periods.map((p) => (
           <button
             key={p.value}
             onClick={() => setPeriod(p.value)}
             className={`px-5 py-2 text-xs font-black rounded-xl transition-all ${
-              period === p.value 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-900'
+              period === p.value ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'
             }`}
           >
             {p.label}
@@ -95,23 +104,23 @@ export default function ABTestChart({ popUpId }: { popUpId: string }) {
         ))}
       </div>
 
-      {/* グラフエリア */}
+      {/* グラフセクション */}
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-10">
-          <h3 className="text-xl font-black text-gray-900 tracking-tight">パターン別コンバージョン率</h3>
+          <h3 className="text-xl font-black text-gray-900">パターン別コンバージョン率</h3>
           <div className="flex gap-4">
             <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
-              <div className="w-3 h-3 bg-blue-500 rounded-sm"></div> パターンA
+              <div className="w-3 h-3 bg-blue-500 rounded-sm" /> パターンA
             </div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
-              <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div> パターンB
+              <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> パターンB
             </div>
           </div>
         </div>
-        
+
         {loading ? (
           <div className="h-[400px] flex flex-col items-center justify-center gap-4">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
             <p className="text-sm font-bold text-gray-400">データを集計中...</p>
           </div>
         ) : data.length === 0 ? (
@@ -119,16 +128,16 @@ export default function ABTestChart({ popUpId }: { popUpId: string }) {
             この期間のデータはまだありません
           </div>
         ) : (
-          <div className="h-[400px] w-full">
+          /* 警告回避のために高さを固定 */
+          <div className="h-[400px] w-full" style={{ minHeight: '400px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              {/* stackOffset="expand" で 100% 積み上げグラフにする */}
-              <BarChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 0 }} stackOffset="expand">
+              <BarChart data={data} stackOffset="expand">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="pattern" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fontWeight: '900', fill: '#1e293b', fontSize: 14 }}
+                  tick={{ fontWeight: 900, fill: '#1e293b', fontSize: 14 }}
                   tickFormatter={(val) => `PATTERN ${val}`}
                 />
                 <YAxis 
@@ -137,23 +146,12 @@ export default function ABTestChart({ popUpId }: { popUpId: string }) {
                   tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} 
                   tickFormatter={(val) => `${(val * 100).toFixed(0)}%`}
                 />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '12px' }}
-                  itemStyle={{ fontWeight: 'bold', fontSize: '12px' }}
-                />
-                
-                {/* クリック部分（成功） */}
+                <Tooltip />
                 <Bar dataKey="clicks" stackId="s" barSize={60}>
                   {data.map((entry, index) => (
-                    <Cell 
-                      key={`cell-click-${index}`} 
-                      fill={entry.pattern === 'A' ? '#3b82f6' : '#10b981'} 
-                    />
+                    <Cell key={index} fill={entry.pattern === 'A' ? '#3b82f6' : '#10b981'} />
                   ))}
                 </Bar>
-                
-                {/* 未クリック部分（残りの割合） */}
                 <Bar dataKey="nonClicks" stackId="s" fill="#f1f5f9" barSize={60} radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -161,7 +159,7 @@ export default function ABTestChart({ popUpId }: { popUpId: string }) {
         )}
       </div>
 
-      {/* 数値データテーブル */}
+      {/* 🟢 復活させた数値データテーブル */}
       {!loading && data.length > 0 && (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-left border-collapse">

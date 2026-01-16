@@ -81,7 +81,7 @@ export default async function PopupsPage() {
               <th className="p-4">ABテスト</th>
               <th className="p-4">パターンA CTR</th>
               <th className="p-4">パターンB CTR</th>
-              <th className="p-4">操作</th>
+              <th className="p-4 text-center">操作</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -90,14 +90,28 @@ export default async function PopupsPage() {
               const ctrA = s.A.view > 0 ? ((s.A.click / s.A.view) * 100).toFixed(1) : "0.0";
               const ctrB = s.B.view > 0 ? ((s.B.click / s.B.view) * 100).toFixed(1) : "0.0";
               return (
-                <tr key={popup.id} className="text-sm">
-                  <td className="p-4 font-bold">{popup.name}</td>
+                <tr key={popup.id} className="text-sm hover:bg-gray-50 transition-colors">
+                  <td className="p-4 font-bold text-gray-800">{popup.name}</td>
                   <td className="p-4">{!!popup.titleB ? '実施中' : 'なし'}</td>
-                  <td className="p-4">{ctrA}%</td>
-                  <td className="p-4">{!!popup.titleB ? `${ctrB}%` : '-'}</td>
+                  <td className="p-4 font-mono">{ctrA}%</td>
+                  <td className="p-4 font-mono">{!!popup.titleB ? `${ctrB}%` : '-'}</td>
                   <td className="p-4">
-                    <div className="flex gap-2">
-                      <Link href={`/admin/popups/${popup.id}/edit`} className="text-blue-600 hover:underline">編集</Link>
+                    <div className="flex items-center justify-center gap-4">
+                      {/* シンプルなテキストリンク */}
+                      <Link 
+                        href={`/admin/analytics/${popup.id}`} 
+                        className="text-blue-600 hover:text-blue-800 font-bold underline"
+                      >
+                        分析
+                      </Link>
+                      
+                      <Link 
+                        href={`/admin/popups/${popup.id}/edit`} 
+                        className="text-gray-500 hover:text-gray-800"
+                      >
+                        編集
+                      </Link>
+                      
                       <DeletePopupButton popupId={popup.id} />
                     </div>
                   </td>

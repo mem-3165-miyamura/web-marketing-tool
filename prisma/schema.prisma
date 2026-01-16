@@ -2,9 +2,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma 7.2.0 以降の仕様: url プロパティを記述せず prisma.config.cjs 側で管理
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum VisitorStatus {
@@ -19,13 +19,13 @@ model User {
   name           String?
   email          String        @unique
   emailVerified  DateTime?
-  image          String?       // 認証エラー解消用
+  image          String?
   hashedPassword String?
   popups         PopUpConfig[]
   mailConfigs    MailConfig[]
-  visitors       Visitor[]     // 追加：管理者が持つ訪問者一覧
+  visitors       Visitor[]     
+  products       Product[]     // 管理者が登録した商品マスター
   
-  // 追加：顧客ステータスの判定ルール
   statusRules    Json?         
   
   createdAt      DateTime      @default(now())
@@ -36,10 +36,9 @@ model Visitor {
   id        String        @id @default(cuid())
   email     String        @unique
   name      String?
-  lastVid   String        // 名寄せ用
+  lastVid   String        
   status    VisitorStatus @default(LEAD)
   
-  // 追加：どの管理者に紐付くか
   userId    String
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -49,6 +48,31 @@ model Visitor {
 
   @@index([lastVid])
   @@index([userId])
+}
+
+// Headless CMS機能としてのプロダクトモデル
+model Product {
+  id          String   @id @default(cuid())
+  name        String   
+  description String?  @db.Text
+  price       Int      
+  imageUrl    String   
+  category    String   
+  stock       Int      @default(0) 
+  
+  isPublished Boolean  @default(true)  
+  isSale      Boolean  @default(false) 
+  priority    Int      @default(0)     
+  campaignTag String?  
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
 }
 
 model PopUpConfig {
@@ -95,9 +119,7 @@ model MailConfig {
 
 model TrackingLog {
   id           String       @id @default(cuid())
-  // 修正：popUpId を String? (Optional) に変更
   popUpId      String?
-  // 修正：popUpConfig を PopUpConfig? (Optional) に変更し、onDelete を SetNull に
   popUpConfig  PopUpConfig? @relation(fields: [popUpId], references: [id], onDelete: SetNull)
   userId       String
   visitorId    String?
